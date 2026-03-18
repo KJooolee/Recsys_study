@@ -10,20 +10,20 @@ def get_user_choice():
     
     # 1. 데이터셋 선택
     print("\n[1] 데이터셋을 선택하세요.")
-    print("  1. Clothing")
+    print("  1. Clothing Shoes and Jewelry")
     print("  2. Electronics")
-    print("  3. Video Games")
+    print("  3. Video_Games")
     dataset_choice = input("입력 (1/2/3): ").strip()
     
-    dataset_map = {'1': 'Clothing', '2': 'Electronics', '3': 'Video_Games'}
+    dataset_map = {'1': 'Clothing_Shoes_and_Jewelry', '2': 'Electronics', '3': 'Video_Games'}
     # 잘못된 입력이 들어오면 기본값으로 Electronics를 선택하도록 안전장치 마련
     source = dataset_map.get(dataset_choice, 'Electronics') 
     
     # 2. 모델 선택
     print("\n[2] 학습할 모델을 선택하세요.")
     print("  1. BPR-MF (Baseline)")
-    print("  2. LightGCN (Graph - 예정)")
-    print("  3. SASRec (Sequence - 예정)")
+    print("  2. LightGCN (Graph)")
+    print("  3. SASRec (Sequence)")
     model_choice = input("입력 (1/2/3): ").strip()
     
     # 3. 실행 모드 선택
