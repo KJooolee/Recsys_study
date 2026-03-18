@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# 데이터 폴더 내의 json, csv 등의 원본 데이터 파일만 무시
+data/**/*.json
+data/**/*.csv
+data/**/*.txt
