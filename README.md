@@ -1,6 +1,6 @@
 # Recsys_study
 
-단순한 모델의 성능(Accuracy) 경쟁을 넘어, 실제 유저의 행동 데이터가 가진 한계를 분석하고 **'다양성(Diversity)'**과 **'우연한 발견(Serendipity)'**을 촉진할 수 있는 최적의 머신러닝 구조를 탐구하는 저장소입니다.
+단순한 모델의 성능(Accuracy) 경쟁을 넘어, 실제 유저의 행동 데이터가 가진 한계를 분석하고 다양성(Diversity)과 우연한 발견(Serendipity)을 촉진할 수 있는 최적의 머신러닝 구조를 탐구하는 저장소입니다.
 
 ## Project Overview
 - **Objective:** 이커머스/리테일 도메인의 현실적인 데이터 제약(Sparsity, Popularity Bias)을 분석하고, 이를 해결하기 위한 다양한 패러다임의 추천 모델을 직접 구현하여 비교 분석합니다.
@@ -14,7 +14,7 @@
 2. **Clothing, Shoes & Jewelry:** 강한 개인 취향 반영 및 극도의 희소성(Sparsity) 분석
 3. **Video Games:** 특정 매니아층의 군집(Niche) 및 잠재 요인 분석
 
-## 🛠️ Models Implemented
+##  Models Implemented
 추천 시스템의 뼈대가 되는 5가지 핵심 방향성을 순차적으로 구현합니다.
 
 | 패러다임 | 알고리즘 | 목적 및 가설 | Status |
@@ -26,11 +26,11 @@
 | **Sequential** | SASRec | Self-Attention을 활용한 유저 행동의 시간적 맥락 및 다음 행동 예측 | ⬜️ |
 
 ## Evaluation Metrics
-현업의 비즈니스 요구사항을 반영하여 다각도로 모델을 평가합니다.
-- **Accuracy:** NDCG@K, Hit Ratio@K
-- **Business Impact:** - `Diversity (ILD)`: 추천 목록의 다양성 보장 (필터 버블 방지)
-  - `Novelty & Serendipity`: 인기 편향(Popularity Bias) 완화 및 우연한 발견 유도
-  - `Coverage`: 롱테일(Long-tail) 및 신규 아이템 추천 비율
+비즈니스 요구사항을 반영하여 다각도로 모델을 평가합니다.
+- `Accuracy`: NDCG@K, Hit Ratio@K
+- `Diversity (ILD)`: 추천 목록의 다양성 보장 (필터 버블 방지)
+- `Novelty & Serendipity`: 인기 편향(Popularity Bias) 완화 및 우연한 발견 유도
+- `Coverage`: 롱테일(Long-tail) 및 신규 아이템 추천 비율
 
 ## 📂 Repository Structure
 ```text
