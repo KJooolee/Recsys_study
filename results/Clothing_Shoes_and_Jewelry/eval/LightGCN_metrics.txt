@@ -1,0 +1,7 @@
+=== LightGCN on Clothing_Shoes_and_Jewelry Dataset ===
+- Hit@10: 0.5686
+- NDCG@10: 0.3845
+- Coverage: 0.9476
+- Diversity (ILD): 0.5624
+- Novelty: 17.8708
+- Serendipity: 9.2688

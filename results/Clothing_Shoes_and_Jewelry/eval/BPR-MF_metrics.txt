@@ -1,0 +1,7 @@
+=== BPR-MF on Clothing_Shoes_and_Jewelry Dataset ===
+- Hit@10: 0.5263
+- NDCG@10: 0.3489
+- Coverage: 0.9197
+- Diversity (ILD): 0.7478
+- Novelty: 17.2585
+- Serendipity: 8.3688
