@@ -1,32 +1,39 @@
-import torch
 import torch.nn as nn
 
 class BPRMF(nn.Module):
     def __init__(self, num_users, num_items, embed_dim=64):
         super(BPRMF, self).__init__()
-        self.user_embedding = nn.Embedding(num_users, embed_dim)
-        self.item_embedding = nn.Embedding(num_items, embed_dim)
+        # sparse=True를 통해 수백만 개의 유저/아이템 그래디언트를 Dense(메모리 폭증)가 아닌 Sparse로 처리합니다
+        self.user_emb = nn.Embedding(num_users, embed_dim, sparse=True)
+        self.item_emb = nn.Embedding(num_items, embed_dim, sparse=True)
         
-        nn.init.xavier_uniform_(self.user_embedding.weight)
-        nn.init.xavier_uniform_(self.item_embedding.weight)
-
+        nn.init.normal_(self.user_emb.weight, std=0.01)
+        nn.init.normal_(self.item_emb.weight, std=0.01)
+        
     def forward(self, users, pos_items, neg_items):
-        """학습용: 정답과 오답 점수 동시 반환"""
-        user_emb = self.user_embedding(users)
-        pos_item_emb = self.item_embedding(pos_items)
-        neg_item_emb = self.item_embedding(neg_items)
+        u_emb = self.user_emb(users)
+        pos_emb = self.item_emb(pos_items)
+        neg_emb = self.item_emb(neg_items)
         
-        pos_scores = (user_emb * pos_item_emb).sum(dim=1)
-        neg_scores = (user_emb * neg_item_emb).sum(dim=1)
+        pos_scores = (u_emb * pos_emb).sum(dim=1)
+        neg_scores = (u_emb * neg_emb).sum(dim=1)
+        
+        # O(1) 정규화를 위한 L2 Regularization 수동 계산
+        reg_loss = (1/2)*(u_emb.norm(2).pow(2) + pos_emb.norm(2).pow(2) + neg_emb.norm(2).pow(2)) / float(len(users))
+        
+        return pos_scores, neg_scores, reg_loss
+        
+        pos_scores = (u_emb * pos_emb).sum(dim=1)
+        neg_scores = (u_emb * neg_emb).sum(dim=1)
         
         return pos_scores, neg_scores
-
-    def predict(self, users, items):
-        """추론용: 특정 유저-아이템 점수 반환"""
-        user_emb = self.user_embedding(users)
-        item_emb = self.item_embedding(items)
         
-        return (user_emb * item_emb).sum(dim=1)
-    
+    def predict(self, users, items):
+        u_emb = self.user_emb(users)
+        i_emb = self.item_emb(items)
+        if items.dim() == 2:
+            return (u_emb.unsqueeze(1) * i_emb).sum(dim=-1)
+        return (u_emb * i_emb).sum(dim=-1)
+        
     def get_all_item_embeddings(self):
-        return self.item_embedding.weight.detach().cpu().numpy()
+        return self.item_emb.weight.detach().cpu().numpy()

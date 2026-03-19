@@ -54,7 +54,14 @@ class LightGCN(nn.Module):
         values = torch.FloatTensor(norm_adj.data)
         shape = torch.Size(norm_adj.shape)
         
-        return torch.sparse_coo_tensor(indices, values, shape)
+        # 반드시 coalesce()를 호출해야 매 미니배치 sparse.mm 연산 시 내부 정렬(Sorting)로 인한 엄청난 속도 저하를 막을 수 있습니다.
+        coo = torch.sparse_coo_tensor(indices, values, shape).coalesce()
+        
+        # 공식 레포(과거 PyTorch 버전)와 달리 최신 PyTorch의 CSR 포맷을 쓰면 메모리 접근 속도가 2~3배 빨라집니다.
+        try:
+            return coo.to_sparse_csr()
+        except:
+            return coo
 
     def get_embedding(self):
         """
@@ -98,18 +105,41 @@ class LightGCN(nn.Module):
         pos_scores = (user_emb * pos_item_emb).sum(dim=1)
         neg_scores = (user_emb * neg_item_emb).sum(dim=1)
         
-        return pos_scores, neg_scores
+        # LightGCN 공식 레포지토리의 정규화 기법 적용:
+        # 모든 전파 레이어가 아니라 0번째 층(초기 임베딩)의 파라미터만 L2 Penalty(정규화) 측정
+        user_emb0 = self.embedding_user(users)
+        pos_emb0 = self.embedding_item(pos_items)
+        neg_emb0 = self.embedding_item(neg_items)
+        
+        reg_loss = (1/2)*(user_emb0.norm(2).pow(2) + pos_emb0.norm(2).pow(2) + neg_emb0.norm(2).pow(2)) / float(len(users))
+        
+        return pos_scores, neg_scores, reg_loss
+
+    def train(self, mode=True):
+        """학습 모드 전환 시 평가용 캐시 초기화"""
+        super().train(mode)
+        if mode:
+            self._eval_users_emb = None
+            self._eval_items_emb = None
+        return self
 
     def predict(self, users, items):
         """
-        추론(평가) 시에 사용할 스코어링 함수
+        추론(평가) 시에 사용할 스코어링 함수 (평가 시 그래프 임베딩 캐싱 적용)
         """
-        all_users, all_items = self.get_embedding()
+        if self.training:
+            all_users, all_items = self.get_embedding()
+        else:
+            if not hasattr(self, '_eval_users_emb') or self._eval_users_emb is None:
+                self._eval_users_emb, self._eval_items_emb = self.get_embedding()
+            all_users, all_items = self._eval_users_emb, self._eval_items_emb
         
         user_emb = all_users[users]
         item_emb = all_items[items]
         
-        return (user_emb * item_emb).sum(dim=1)
+        if items.dim() == 2:
+            return (user_emb.unsqueeze(1) * item_emb).sum(dim=-1)
+        return (user_emb * item_emb).sum(dim=-1)
     
     def get_all_item_embeddings(self):
         """Diversity(ILD) 계산을 위해 최종 전파된 아이템 임베딩 반환"""

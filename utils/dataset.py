@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset
 import random
 from collections import defaultdict
+import numpy as np
 
 class BPRTrainDataset(Dataset):
     """
@@ -10,8 +11,8 @@ class BPRTrainDataset(Dataset):
     """
     def __init__(self, df_train, num_items):
         super(BPRTrainDataset, self).__init__()
-        self.users = df_train['user_id'].tolist()
-        self.pos_items = df_train['item_id'].tolist()
+        self.users = df_train['user_id'].values
+        self.pos_items = df_train['item_id'].values
         self.num_items = num_items
         
         # 유저별로 이미 상호작용한 전체 아이템 셋 (빠른 네거티브 샘플링을 위해)
@@ -30,7 +31,6 @@ class BPRTrainDataset(Dataset):
         user = self.users[idx]
         pos_item = self.pos_items[idx]
         
-        # 유저가 한 번도 클릭하지 않은 아이템을 1개 랜덤 샘플링
         while True:
             neg_item = random.randint(0, self.num_items - 1)
             if neg_item not in self.user_pos_dict[user]:
@@ -39,6 +39,39 @@ class BPRTrainDataset(Dataset):
         return torch.tensor(user, dtype=torch.long), \
                torch.tensor(pos_item, dtype=torch.long), \
                torch.tensor(neg_item, dtype=torch.long)
+
+    def fast_sample(self, batch_size):
+        """
+        PyTorch DataLoader의 collate_fn 병목(개별 텐서를 수천 개씩 묶는 연산)을 피해
+        LightGCN 공식 구현체처럼 Numpy 배열 단에서 통째로 썰어 매 에폭마다 텐서 배치를 고속 생성합니다.
+        """
+        n_samples = len(self.users)
+        neg_items = np.empty(n_samples, dtype=np.int64)
+        
+        # 속도 최적화를 위한 numpy loop
+        for i in range(n_samples):
+            u = self.users[i]
+            while True:
+                neg = random.randint(0, self.num_items - 1)
+                if neg not in self.user_pos_dict[u]:
+                    break
+            neg_items[i] = neg
+            
+        indices = np.random.permutation(n_samples)
+        shuffled_users = self.users[indices]
+        shuffled_pos = self.pos_items[indices]
+        shuffled_neg = neg_items[indices]
+        
+        batches = []
+        for start in range(0, n_samples, batch_size):
+            end = start + batch_size
+            if end > n_samples: break # drop_last=True 구조
+            batches.append((
+                torch.LongTensor(shuffled_users[start:end]),
+                torch.LongTensor(shuffled_pos[start:end]),
+                torch.LongTensor(shuffled_neg[start:end])
+            ))
+        return batches
 
 
 class EvalDataset(Dataset):

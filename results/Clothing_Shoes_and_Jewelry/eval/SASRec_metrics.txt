@@ -1,0 +1,7 @@
+=== SASRec on Clothing_Shoes_and_Jewelry Dataset ===
+- Hit@10: 0.4938
+- NDCG@10: 0.3007
+- Coverage: 0.5346
+- Diversity (ILD): 0.9938
+- Novelty: 18.4878
+- Serendipity: 8.9524

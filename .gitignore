@@ -210,3 +210,6 @@ __marimo__/
 data/**/*.json
 data/**/*.csv
 data/**/*.txt
+
+# 체크포인트
+checkpoints/

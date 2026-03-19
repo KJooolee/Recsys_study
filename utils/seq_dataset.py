@@ -8,7 +8,6 @@ def get_user_seqs(df):
     """유저별로 시간순으로 정렬된 아이템 시퀀스 딕셔너리를 생성합니다."""
     user_seqs = defaultdict(list)
     for user, item in zip(df['user_id'], df['item_id']):
-        # 패딩(0)과 겹치지 않게 하기 위해 실제 아이템 ID에 1을 더해줍니다.
         user_seqs[user].append(item + 1) 
     return user_seqs
 
@@ -16,7 +15,8 @@ class SeqTrainDataset(Dataset):
     """SASRec 학습을 위한 시퀀스 데이터셋 (Max Length만큼 잘라내고 빈칸은 0으로 채움)"""
     def __init__(self, df_train, num_items, max_len=50):
         self.user_seqs = get_user_seqs(df_train)
-        self.users = list(self.user_seqs.keys())
+        self.users = [u for u, seq in self.user_seqs.items() if len(seq) > 1]
+        
         self.num_items = num_items
         self.max_len = max_len
 
@@ -26,6 +26,9 @@ class SeqTrainDataset(Dataset):
     def __getitem__(self, index):
         user = self.users[index]
         seq = self.user_seqs[user]
+        
+        # 탐색(in) 속도를 O(N)에서 O(1)로 대폭 개선하기 위해 Set 구조 활용
+        seq_set = set(seq)
 
         # max_len 크기의 빈 배열(0으로 채워짐) 준비
         inputs = np.zeros([self.max_len], dtype=np.int64)
@@ -43,7 +46,7 @@ class SeqTrainDataset(Dataset):
             # 오답(Negative) 랜덤 샘플링
             while True:
                 neg = random.randint(1, self.num_items)
-                if neg not in seq:
+                if neg not in seq_set:
                     break
             negatives[idx] = neg
             
@@ -80,11 +83,12 @@ class SeqEvalDataset(Dataset):
         seq_to_use = seq[-self.max_len:]
         inputs[-len(seq_to_use):] = seq_to_use
 
-        # 평가용 네거티브 샘플링 (1~num_items 안에서)
+        # 네거티브 샘플링 속도 개선을 위해 set 사용으로 O(1) 탐색
+        seq_set = set(seq)
         neg_items = []
         while len(neg_items) < self.num_negatives:
             neg_item = random.randint(1, self.num_items)
-            if (neg_item not in seq) and (neg_item != target_item):
+            if (neg_item not in seq_set) and (neg_item != target_item):
                 neg_items.append(neg_item)
 
         return torch.tensor(user, dtype=torch.long), \

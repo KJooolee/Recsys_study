@@ -21,10 +21,11 @@ class SASRec(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=embed_dim,
             nhead=num_heads,
-            dim_feedforward=embed_dim * 4,
+            dim_feedforward=embed_dim, # SASRec 공식 레포는 오버피팅을 막기 위해 4배가 아닌 1배수를 사용함
             dropout=dropout_rate,
             activation='relu',
-            batch_first=True # [batch_size, seq_len, embed_dim] 형태 유지
+            batch_first=True,          # [batch_size, seq_len, embed_dim] 형태 유지
+            norm_first=True            # SASRec 공식 레포는 Pre-LayerNorm 구조를 사용하므로 반드시 True여야 함
         )
         # 여러 층(num_blocks)을 쌓아서 깊은 맥락을 파악
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_blocks)
@@ -49,10 +50,17 @@ class SASRec(nn.Module):
         padding_mask = (seqs == 0) # [batch_size, max_len]
         
         # B. Causal Mask: 과거를 보고 '미래'를 컨닝하지 못하게 대각선 위쪽을 가림
-        causal_mask = nn.Transformer.generate_square_subsequent_mask(seq_len).to(seqs.device)
+        # PyTorch 최신 버전에서 padding_mask(bool)와 causal_mask(float)의 타입이 다르면 경고창이 발생하므로
+        # causal_mask도 bool 타입(True면 마스킹)으로 강제 생성하여 캐싱합니다.
+        if not hasattr(self, 'causal_mask') or getattr(self, 'causal_mask').size(0) != seq_len or getattr(self, 'causal_mask').device != seqs.device:
+            self.causal_mask = torch.triu(torch.ones((seq_len, seq_len), device=seqs.device, dtype=torch.bool), diagonal=1)
         
         # 4. Transformer 통과
-        log_feats = self.transformer(seq_embs, mask=causal_mask, src_key_padding_mask=padding_mask)
+        # 🚨 [치명적 버그 수정] PyTorch의 src_key_padding_mask와 causal_mask를 동시에 쓰면 
+        # 앞쪽 패딩(0)들끼리 Self-Attention 과정에서 Softmax(-inf) = NaN을 뱉어내고, 이것이 연쇄적으로 
+        # 전체 시퀀스(정답 아이템까지)를 NaN으로 오염시킵니다. 따라서 패딩 마스크를 인자로 넘기지 않고 
+        # 일반 토큰(0번 은닉)처럼 자연스럽게 어텐션시킨 뒤, 최종 Loss에서만 마스킹으로 버리는 게 정석입니다.
+        log_feats = self.transformer(seq_embs, mask=self.causal_mask)
         
         return log_feats # [batch_size, max_len, embed_dim]
 
@@ -68,8 +76,11 @@ class SASRec(nn.Module):
         item_embs = self.item_emb(item_indices)
         
         # 내적을 통해 최종 점수 산출
-        if item_embs.dim() == 2: # 1D 텐서 (모든 아이템 예측)
-            scores = torch.matmul(final_feat, item_embs.transpose(0, 1))
+        if item_embs.dim() == 2: # 1D 텐서 (배치 내 단일 아이템 예측)
+            if item_embs.size(0) == final_feat.size(0):
+                scores = (final_feat * item_embs).sum(dim=-1)
+            else: # 전체 아이템 예측 등
+                scores = torch.matmul(final_feat, item_embs.transpose(0, 1))
         else: # 2D 텐서 (네거티브 샘플링된 아이템들 예측)
             scores = (final_feat.unsqueeze(1) * item_embs).sum(dim=-1)
             
