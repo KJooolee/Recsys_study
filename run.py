@@ -4,9 +4,9 @@ from main import run_pipeline
 
 def get_user_choice():
     """터미널에서 사용자의 입력을 받는 CLI 함수"""
-    print("="*50)
-    print(" 🚀 당근마켓 JD 타겟팅 추천시스템 파이프라인 🚀 ")
-    print("="*50)
+    print("="*40)
+    print("추천시스템 파이프라인")
+    print("="*40)
     
     # 1. 데이터셋 선택
     print("\n[1] 데이터셋을 선택하세요.")
@@ -24,7 +24,8 @@ def get_user_choice():
     print("  1. BPR-MF (Baseline)")
     print("  2. LightGCN (Graph)")
     print("  3. SASRec (Sequence)")
-    model_choice = input("입력 (1/2/3): ").strip()
+    print("  4. TwoTowerCL (CL Double-MLP)")
+    model_choice = input("입력 (1/2/3/4): ").strip()
     
     # 3. 실행 모드 선택
     print("\n[3] 실행 모드를 선택하세요.")

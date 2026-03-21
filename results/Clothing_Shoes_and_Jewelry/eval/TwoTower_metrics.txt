@@ -1,0 +1,7 @@
+=== TwoTower on Clothing_Shoes_and_Jewelry Dataset ===
+- Hit@10: 0.4900
+- NDCG@10: 0.2998
+- Coverage: 0.2382
+- Diversity (ILD): 0.0550
+- Novelty: 16.5958
+- Serendipity: 7.6028
