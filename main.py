@@ -7,6 +7,7 @@ import torch.optim as optim
 from models.bpr_mf import BPRMF
 from models.lightgcn import LightGCN
 from models.sasrec import SASRec
+from models.two_tower_cl import TwoTowerCL
 
 from trainers.bpr_trainer import BPRTrainer
 from trainers.seq_trainer import SeqTrainer
@@ -47,14 +48,14 @@ def run_pipeline(source, model_choice, mode_choice):
     train_df, val_df, test_df, num_users, num_items, item2id = load_and_remap_data(source)
     
     print("\nDataLoader를 세팅합니다...")
-    if model_choice == '1':
+    if model_choice == '1' or model_choice == '4':
         batch_size = 8192     
     elif model_choice == '2':
         batch_size = 32768      
     elif model_choice == '3': 
         batch_size = 2048     
     
-    if model_choice in ['1', '2']: # BPR-MF, LightGCN (단일 아이템)
+    if model_choice in ['1', '2', '4']: # BPR-MF, LightGCN, TwoTowerAdapter (단일 아이템 기반 모델들)
         train_dataset = BPRTrainDataset(train_df, num_items)
         val_dataset = EvalDataset(val_df, train_df, num_items, num_negatives=99)
         test_dataset = EvalDataset(test_df, train_df, num_items, num_negatives=99)
@@ -79,7 +80,7 @@ def run_pipeline(source, model_choice, mode_choice):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"✅ 사용 디바이스: {device}")
     
-    model_name_map = {'1': 'BPR-MF', '2': 'LightGCN', '3': 'SASRec'}
+    model_name_map = {'1': 'BPR-MF', '2': 'LightGCN', '3': 'SASRec', '4': 'TwoTower'}
     model_name = model_name_map.get(model_choice, 'BPR-MF')
     
     save_path = f'checkpoints/{source}_{model_name}_best.pt'
@@ -99,11 +100,17 @@ def run_pipeline(source, model_choice, mode_choice):
         model = SASRec(num_items, max_len=50, embed_dim=64, num_heads=2, num_blocks=2, dropout_rate=0.2)
         # 공식 pmixer/SASRec.pytorch와 마찬가지로 전역 weight_decay를 0으로 해제하여 Hit=1 매몰 버그를 막습니다.
         optimizer = optim.Adam(model.parameters(), lr=0.001)
+    elif model_choice == '4':
+        model = TwoTowerCL(num_users, num_items, embed_dim=64)
+        optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+
+
     
     if mode_choice == '1':
         print(f"\n=== [{model_name}] 학습을 시작합니다 ===")
         
-        if model_choice in ['1', '2']:
+        if model_choice in ['1', '2', '4']:
             trainer = BPRTrainer(model, optimizer, device, epochs=50, save_path=save_path)
         elif model_choice == '3':
             trainer = SeqTrainer(model, optimizer, device, epochs=50, save_path=save_path)

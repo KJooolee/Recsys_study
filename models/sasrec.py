@@ -56,10 +56,6 @@ class SASRec(nn.Module):
             self.causal_mask = torch.triu(torch.ones((seq_len, seq_len), device=seqs.device, dtype=torch.bool), diagonal=1)
         
         # 4. Transformer 통과
-        # 🚨 [치명적 버그 수정] PyTorch의 src_key_padding_mask와 causal_mask를 동시에 쓰면 
-        # 앞쪽 패딩(0)들끼리 Self-Attention 과정에서 Softmax(-inf) = NaN을 뱉어내고, 이것이 연쇄적으로 
-        # 전체 시퀀스(정답 아이템까지)를 NaN으로 오염시킵니다. 따라서 패딩 마스크를 인자로 넘기지 않고 
-        # 일반 토큰(0번 은닉)처럼 자연스럽게 어텐션시킨 뒤, 최종 Loss에서만 마스킹으로 버리는 게 정석입니다.
         log_feats = self.transformer(seq_embs, mask=self.causal_mask)
         
         return log_feats # [batch_size, max_len, embed_dim]
